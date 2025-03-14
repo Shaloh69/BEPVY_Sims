@@ -9,46 +9,30 @@ export const siteConfig = {
       href: "/",
     },
     {
-      label: "Docs",
-      href: "/docs",
-    },
-    {
-      label: "Pricing",
-      href: "/pricing",
-    },
-    {
-      label: "Blog",
-      href: "/blog",
-    },
-    {
       label: "About",
-      href: "/about",
+      href: "/About",
+    },
+    {
+      label: "Simulator",
+      href: "/simulator",
     },
   ],
   navMenuItems: [
     {
+      label: "Home",
+      href: "/",
+    },
+    {
+      label: "About",
+      href: "/About",
+    },
+    {
+      label: "Simulator",
+      href: "/simulator",
+    },
+    {
       label: "Profile",
       href: "/profile",
-    },
-    {
-      label: "Dashboard",
-      href: "/dashboard",
-    },
-    {
-      label: "Projects",
-      href: "/projects",
-    },
-    {
-      label: "Team",
-      href: "/team",
-    },
-    {
-      label: "Calendar",
-      href: "/calendar",
-    },
-    {
-      label: "Settings",
-      href: "/settings",
     },
     {
       label: "Help & Feedback",
@@ -58,6 +42,12 @@ export const siteConfig = {
       label: "Logout",
       href: "/logout",
     },
+  ],
+  sim_LumensItems: [
+    { key: "incandescent", label: "Incandescent" },
+    { key: "fluorescent", label: "Fluorescent" },
+    { key: "led", label: "LED" },
+    { key: "halogen", label: "Halogen" },
   ],
   links: {
     github: "https://github.com/heroui-inc/heroui",
