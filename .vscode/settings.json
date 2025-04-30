@@ -1,3 +1,9 @@
 {
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "git.ignoreLimitWarning": true,
+  "python.analysis.extraPaths": [
+    "./CubiCasa/CubiCasa5k/create_",
+    "./CubiCasa/CubiCasa5k/create_",
+    "./CubiCasa/CubiCasa5k/create_"
+  ]
 }

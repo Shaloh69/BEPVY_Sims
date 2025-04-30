@@ -19,7 +19,10 @@ import { siteConfig } from "@/config/site";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { UserIcon, Logo } from "@/components/icons";
 
+import { useAuthModals } from "@/context/useAuthModals";
+
 export const Navbar = () => {
+  const { openModal } = useAuthModals();
   return (
     <HeroUINavbar maxWidth="xl" position="sticky">
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
@@ -55,7 +58,12 @@ export const Navbar = () => {
           <ThemeSwitch />
         </NavbarItem>
         <NavbarItem className="hidden lg:flex">
-          <Button color="primary" startContent={<UserIcon />} variant="ghost">
+          <Button
+            onPress={() => openModal("login")}
+            startContent={<UserIcon />}
+            variant="ghost"
+            color="primary"
+          >
             Log in
           </Button>
         </NavbarItem>
