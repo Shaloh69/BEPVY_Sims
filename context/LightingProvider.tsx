@@ -1,9 +1,20 @@
 // context/LightingProvider.tsx
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { siteConfig } from "@/config/site";
+import { addToast } from "@heroui/react";
 
-// Types for room dimensions, lighting requirements, and calculation results
+// Types
+type ContaminationLevel = "very clean" | "clean" | "normal" | "dirty";
+type MaintenanceInterval = 1 | 2 | 3 | 4 | 5 | 6;
+
 interface RoomDimensions {
   length: number;
   width: number;
@@ -14,34 +25,69 @@ interface RoomDimensions {
 interface LightingRequirements {
   targetIlluminance: number;
   fluxPerLamp: number;
-  contaminationLevel: "very clean" | "clean" | "normal" | "dirty";
-  maintenanceInterval: 1 | 2 | 3 | 4 | 5 | 6;
+  contaminationLevel: ContaminationLevel;
+  maintenanceInterval: MaintenanceInterval;
   ceilingReflectance: number;
   wallReflectance: number;
 }
 
+interface Layout {
+  rows: number;
+  columns: number;
+  lengthSpacing: number;
+  widthSpacing: number;
+}
+
+interface IlluminanceDistribution {
+  average: number;
+  minimum: number;
+  maximum: number;
+  uniformity: number;
+}
+
+interface EnergyMetrics {
+  totalPower: number;
+  powerDensity: number;
+  efficiencyRating: string;
+}
+
+// New interfaces for bill of materials
+interface MaterialItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  description?: string;
+}
+
+interface BillOfMaterials {
+  items: MaterialItem[];
+  totalEstimatedCost?: number;
+}
+
 interface LightingResults {
   numberOfLamps: number;
+  roomCavityRatio: number;
   coefficientOfUtilization: number;
   maintenanceFactor: number;
-  roomCavityRatio: number;
-  layout: {
-    rows: number;
-    columns: number;
-    lengthSpacing: number;
-    widthSpacing: number;
-  };
-  illuminanceDistribution: {
-    average: number;
-    minimum: number;
-    maximum: number;
-    uniformity: number;
-  };
-  energyMetrics: {
-    totalPower: number;
-    powerDensity: number;
-    efficiencyRating: string;
-  };
+  layout: Layout;
+  illuminanceDistribution: IlluminanceDistribution;
+  energyMetrics: EnergyMetrics;
+  billOfMaterials: BillOfMaterials;
+}
+
+interface LightingContextType {
+  roomDimensions: RoomDimensions;
+  setRoomDimensions: (dimensions: RoomDimensions) => void;
+  lightingRequirements: LightingRequirements;
+  setLightingRequirements: (requirements: LightingRequirements) => void;
+  lightingResults: LightingResults | null;
+  setLightingResults: (results: LightingResults | null) => void;
+  lampPositions: Array<{ x: number; y: number; z: number }>;
+  illuminanceGrid: Array<{ x: number; y: number; illuminance: number }>;
+  calculateResults: () => void;
+  isCalculating: boolean;
+  loadCalculation: (savedCalculation: any) => void;
+  renderTrigger: number;
 }
 
 // Maintenance factor lookup table based on contamination level and maintenance interval
@@ -80,24 +126,6 @@ const maintenanceFactorTable = {
   },
 };
 
-// Context interface
-interface LightingContextType {
-  roomDimensions: RoomDimensions;
-  setRoomDimensions: React.Dispatch<React.SetStateAction<RoomDimensions>>;
-  lightingRequirements: LightingRequirements;
-  setLightingRequirements: React.Dispatch<
-    React.SetStateAction<LightingRequirements>
-  >;
-  lightingResults: LightingResults | null;
-  lampPositions: Array<{ x: number; y: number; z: number }>;
-  illuminanceGrid: Array<{ x: number; y: number; illuminance: number }>;
-  calculateResults: () => void;
-  isCalculating: boolean;
-  // Add this new field to the context:
-  renderTrigger: number;
-}
-
-// Default values
 const defaultRoomDimensions: RoomDimensions = {
   length: 10,
   width: 8,
@@ -114,31 +142,99 @@ const defaultLightingRequirements: LightingRequirements = {
   wallReflectance: 0.5,
 };
 
-// Create context
 const LightingContext = createContext<LightingContextType | undefined>(
   undefined
 );
 
-export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const LightingProvider = ({ children }: { children: ReactNode }) => {
   const [roomDimensions, setRoomDimensions] = useState<RoomDimensions>(
     defaultRoomDimensions
   );
-
-  const [renderTrigger, setRenderTrigger] = useState<number>(0);
-
   const [lightingRequirements, setLightingRequirements] =
     useState<LightingRequirements>(defaultLightingRequirements);
   const [lightingResults, setLightingResults] =
     useState<LightingResults | null>(null);
+  const [isCalculating, setIsCalculating] = useState<boolean>(false);
   const [lampPositions, setLampPositions] = useState<
     Array<{ x: number; y: number; z: number }>
   >([]);
+
   const [illuminanceGrid, setIlluminanceGrid] = useState<
     Array<{ x: number; y: number; illuminance: number }>
   >([]);
-  const [isCalculating, setIsCalculating] = useState<boolean>(false);
+  const [renderTrigger, setRenderTrigger] = useState<number>(0);
+
+  // Check for saved calculation in localStorage on initial load
+  useEffect(() => {
+    const checkForSavedCalculation = () => {
+      const savedCalcJson = localStorage.getItem("loadCalculation");
+      if (savedCalcJson) {
+        try {
+          const savedCalc = JSON.parse(savedCalcJson);
+          loadCalculation(savedCalc);
+          // Clear from localStorage after loading
+          localStorage.removeItem("loadCalculation");
+        } catch (error) {
+          console.error("Error loading saved calculation:", error);
+        }
+      }
+    };
+
+    checkForSavedCalculation();
+  }, []);
+
+  // Helper function to load a saved calculation
+  const loadCalculation = (savedCalculation: any) => {
+    // Check if we need to auto-calculate after loading
+    const shouldAutoCalculate = savedCalculation.autoCalculate === true;
+
+    // Remove the autoCalculate flag if it exists to avoid saving it in the actual data
+    if (savedCalculation.autoCalculate) {
+      const { autoCalculate, ...cleanedCalculation } = savedCalculation;
+      savedCalculation = cleanedCalculation;
+    }
+
+    if (savedCalculation.roomDimensions) {
+      setRoomDimensions(savedCalculation.roomDimensions);
+    }
+
+    if (savedCalculation.lightingRequirements) {
+      // Handle cases where lightingRequirements might be missing some properties
+      // that are in the default state (like the new wattage field)
+      setLightingRequirements({
+        ...lightingRequirements, // Keep default values for any missing properties
+        ...savedCalculation.lightingRequirements, // Override with saved values
+      });
+    }
+
+    if (savedCalculation.results) {
+      setLightingResults(savedCalculation.results);
+    }
+
+    setTimeout(() => {
+      calculateResults();
+    }, 7000);
+    // Auto-calculate if the flag was set
+    if (shouldAutoCalculate) {
+      // Use setTimeout to allow the UI to update first with the loaded values
+      setTimeout(() => {
+        calculateResults();
+      }, 1000);
+    }
+
+    // Let the user know the calculation was loaded
+    if (typeof window !== "undefined") {
+      addToast({
+        title: shouldAutoCalculate
+          ? "Calculation in progress..."
+          : "Saved calculation loaded",
+        description: shouldAutoCalculate
+          ? "Recalculating based on saved parameters"
+          : "Parameters loaded successfully",
+        timeout: 4000,
+      });
+    }
+  };
 
   // Calculate Room Cavity Ratio (RCR)
   const calculateRCR = (dimensions: RoomDimensions): number => {
@@ -147,7 +243,7 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
     return (5 * cavityHeight * (length + width)) / (length * width);
   };
 
-  // Calculate Coefficient of Utilization (CU)
+  // Calculate Coefficient of Utilization based on room cavity ratio and reflectances
   const calculateCU = (
     rcr: number,
     ceilingReflectance: number,
@@ -168,7 +264,7 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
     return Math.max(0.3, Math.min(0.85, calculatedCU));
   };
 
-  // Calculate number of lamps required
+  // Calculate number of lamps required - MODIFIED TO ENSURE EVEN NUMBERS
   const calculateNumberOfLamps = (
     targetIlluminance: number,
     floorArea: number,
@@ -179,20 +275,18 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
     const lampsRaw =
       (targetIlluminance * floorArea) /
       (fluxPerLamp * coefficientOfUtilization * maintenanceFactor);
-    return Math.ceil(lampsRaw); // Round up to ensure adequate lighting
+
+    // Round up to nearest even number
+    const roundedUp = Math.ceil(lampsRaw);
+    return roundedUp % 2 === 0 ? roundedUp : roundedUp + 1;
   };
 
-  // Calculate lamp layout
+  // Calculate optimal layout for lamps
   const calculateLayout = (
     numberOfLamps: number,
     roomLength: number,
     roomWidth: number
-  ): {
-    rows: number;
-    columns: number;
-    lengthSpacing: number;
-    widthSpacing: number;
-  } => {
+  ): Layout => {
     // Calculate aspect ratio of the room
     const aspectRatio = roomLength / roomWidth;
 
@@ -220,38 +314,8 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
     return {
       rows,
       columns,
-      lengthSpacing,
-      widthSpacing,
-    };
-  };
-
-  // Calculate energy metrics
-  const calculateEnergyMetrics = (
-    numberOfLamps: number,
-    fluxPerLamp: number,
-    floorArea: number
-  ): { totalPower: number; powerDensity: number; efficiencyRating: string } => {
-    // Assume efficiency of 100 lumens per watt (typical for modern LED)
-    const wattsPerLamp = fluxPerLamp / 100;
-    const totalPower = numberOfLamps * wattsPerLamp;
-    const powerDensity = totalPower / floorArea;
-
-    // Determine energy efficiency rating based on power density
-    let rating = "Excellent";
-    if (powerDensity > 15) {
-      rating = "Poor";
-    } else if (powerDensity > 10) {
-      rating = "Average";
-    } else if (powerDensity > 7) {
-      rating = "Good";
-    } else if (powerDensity > 5) {
-      rating = "Very Good";
-    }
-
-    return {
-      totalPower: parseFloat(totalPower.toFixed(2)),
-      powerDensity: parseFloat(powerDensity.toFixed(2)),
-      efficiencyRating: rating,
+      lengthSpacing: parseFloat(lengthSpacing.toFixed(2)),
+      widthSpacing: parseFloat(widthSpacing.toFixed(2)),
     };
   };
 
@@ -262,12 +326,7 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
     coefficientOfUtilization: number,
     maintenanceFactor: number,
     floorArea: number
-  ): {
-    average: number;
-    minimum: number;
-    maximum: number;
-    uniformity: number;
-  } => {
+  ): IlluminanceDistribution => {
     const totalLumens = numberOfLamps * fluxPerLamp;
     const averageIlluminance =
       (totalLumens * coefficientOfUtilization * maintenanceFactor) / floorArea;
@@ -285,14 +344,117 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   };
 
+  // Calculate energy metrics
+  const calculateEnergyMetrics = (
+    numberOfLamps: number,
+    floorArea: number
+  ): EnergyMetrics => {
+    const { fluxPerLamp } = lightingRequirements;
+
+    // Find the selected lamp from siteConfig to get actual wattage
+    const selectedLamp = siteConfig.sim_LumensItems.find(
+      (lamp) => lamp.fluxValue === fluxPerLamp
+    );
+
+    // Use actual wattage if available, otherwise estimate based on lumens per watt efficiency
+    const wattsPerLamp = selectedLamp?.wattage || fluxPerLamp / 100;
+
+    const totalPower = numberOfLamps * wattsPerLamp;
+    const powerDensity = totalPower / floorArea;
+
+    // Determine efficiency rating
+    let efficiencyRating: string;
+    if (powerDensity < 5) {
+      efficiencyRating = "Excellent";
+    } else if (powerDensity < 8) {
+      efficiencyRating = "Very Good";
+    } else if (powerDensity < 12) {
+      efficiencyRating = "Good";
+    } else if (powerDensity < 15) {
+      efficiencyRating = "Average";
+    } else {
+      efficiencyRating = "Poor";
+    }
+
+    return {
+      totalPower: parseFloat(totalPower.toFixed(2)),
+      powerDensity: parseFloat(powerDensity.toFixed(2)),
+      efficiencyRating,
+    };
+  };
+
+  // Generate bill of materials
+  const generateBillOfMaterials = (
+    numberOfLamps: number,
+    roomDimensions: RoomDimensions,
+    layout: Layout,
+    selectedLamp: any
+  ): BillOfMaterials => {
+    // Find selected lamp details
+    const lampType =
+      selectedLamp?.label || `${lightingRequirements.fluxPerLamp} lumen lamp`;
+
+    // Calculate room perimeter for wiring estimation
+    const roomPerimeter = 2 * (roomDimensions.length + roomDimensions.width);
+
+    // Calculate approximate wire length needed (perimeter + connections to each lamp)
+    // This is a simplified estimation - real calculations would be more complex
+    const estimatedWiringLength = roomPerimeter + numberOfLamps * 1.5;
+
+    // Calculate mounting hardware needed (typically 2-4 mounting points per lamp)
+    const mountingPoints = numberOfLamps * 2;
+
+    // Calculate switches and controllers (1 main switch, optional dimmer)
+    const switches = 1;
+
+    // Create material items list
+    const items: MaterialItem[] = [
+      {
+        name: lampType,
+        quantity: numberOfLamps,
+        unit: "pcs",
+        description: `${lightingRequirements.fluxPerLamp} lumens per lamp`,
+      },
+      {
+        name: "Mounting Kit",
+        quantity: numberOfLamps,
+        unit: "sets",
+        description: "Ceiling mounting hardware kit",
+      },
+      {
+        name: "Mounting Brackets",
+        quantity: mountingPoints,
+        unit: "pcs",
+        description: "Brackets for secure mounting",
+      },
+      {
+        name: "Electrical Wire",
+        quantity: parseFloat(estimatedWiringLength.toFixed(1)),
+        unit: "meters",
+        description: "2.5mm² electrical cable",
+      },
+      {
+        name: "Light Switch",
+        quantity: switches,
+        unit: "pcs",
+        description: "Wall mounted light switch",
+      },
+      {
+        name: "Junction Box",
+        quantity: Math.ceil(numberOfLamps / 4),
+        unit: "pcs",
+        description: "Electrical junction box",
+      },
+    ];
+
+    return {
+      items: items,
+    };
+  };
+
   // Generate lamp positions
   const generateLampPositions = (
-    layout: {
-      rows: number;
-      columns: number;
-      lengthSpacing: number;
-      widthSpacing: number;
-    },
+    layout: Layout,
     roomLength: number,
     roomWidth: number,
     roomHeight: number,
@@ -394,9 +556,10 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
   const calculateResults = () => {
     setIsCalculating(true);
 
-    // Use setTimeout to give the UI a chance to update with loading state
+    // Use setTimeout to allow UI to update with loading state
     setTimeout(() => {
       try {
+        // Get current dimensions and requirements
         const { length, width, height, workplaneHeight } = roomDimensions;
         const {
           targetIlluminance,
@@ -416,7 +579,7 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
         // Calculate Coefficient of Utilization
         const cu = calculateCU(rcr, ceilingReflectance, wallReflectance);
 
-        // Get Maintenance Factor
+        // Get Maintenance Factor from lookup table
         const mf =
           maintenanceFactorTable[contaminationLevel][maintenanceInterval];
 
@@ -432,13 +595,6 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
         // Calculate layout
         const layout = calculateLayout(numberOfLamps, length, width);
 
-        // Calculate energy metrics
-        const energyMetrics = calculateEnergyMetrics(
-          numberOfLamps,
-          fluxPerLamp,
-          floorArea
-        );
-
         // Calculate illuminance distribution
         const illuminanceDistribution = calculateIlluminanceDistribution(
           numberOfLamps,
@@ -448,17 +604,35 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
           floorArea
         );
 
-        // Set lighting results
+        // Calculate energy metrics
+        const energyMetrics = calculateEnergyMetrics(numberOfLamps, floorArea);
+
+        // Find the selected lamp from siteConfig
+        const selectedLamp = siteConfig.sim_LumensItems.find(
+          (lamp) => lamp.fluxValue === fluxPerLamp
+        );
+
+        // Generate bill of materials
+        const billOfMaterials = generateBillOfMaterials(
+          numberOfLamps,
+          roomDimensions,
+          layout,
+          selectedLamp
+        );
+
+        // Create final results object
         const results: LightingResults = {
           numberOfLamps,
+          roomCavityRatio: parseFloat(rcr.toFixed(2)),
           coefficientOfUtilization: parseFloat(cu.toFixed(3)),
           maintenanceFactor: mf,
-          roomCavityRatio: parseFloat(rcr.toFixed(2)),
           layout,
           illuminanceDistribution,
           energyMetrics,
+          billOfMaterials,
         };
 
+        // Update results state
         setLightingResults(results);
 
         // Generate lamp positions
@@ -483,18 +657,24 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
           mf
         );
         setIlluminanceGrid(grid);
-        setRoomDimensions({ ...roomDimensions });
+
+        // Trigger re-render for any components depending on the results
         setRenderTrigger((prev) => prev + 1);
-        console.log(
-          "Lighting calculations complete. Render trigger:",
-          renderTrigger + 1
-        );
+
+        console.log("Lighting calculations complete. Results:", results);
+        console.log("Render trigger incremented to:", renderTrigger + 1);
       } catch (error) {
-        console.error("Error calculating lighting:", error);
+        console.error("Calculation error:", error);
+        addToast({
+          title: "Calculation Error",
+          description:
+            "There was a problem performing the lighting calculations.",
+          timeout: 5000,
+        });
       } finally {
         setIsCalculating(false);
       }
-    }, 100);
+    }, 500);
   };
 
   // Initial calculation on mount
@@ -502,27 +682,29 @@ export const LightingProvider: React.FC<{ children: React.ReactNode }> = ({
     calculateResults();
   }, []);
 
+  const value = {
+    roomDimensions,
+    setRoomDimensions,
+    lightingRequirements,
+    setLightingRequirements,
+    lightingResults,
+    setLightingResults,
+    lampPositions,
+    illuminanceGrid,
+    calculateResults,
+    isCalculating,
+    loadCalculation,
+    renderTrigger,
+  };
+
   return (
-    <LightingContext.Provider
-      value={{
-        roomDimensions,
-        setRoomDimensions,
-        lightingRequirements,
-        setLightingRequirements,
-        lightingResults,
-        lampPositions,
-        illuminanceGrid,
-        calculateResults,
-        isCalculating,
-        renderTrigger, // Add this
-      }}
-    >
+    <LightingContext.Provider value={value}>
       {children}
     </LightingContext.Provider>
   );
 };
 
-export const useLighting = (): LightingContextType => {
+export const useLighting = () => {
   const context = useContext(LightingContext);
   if (context === undefined) {
     throw new Error("useLighting must be used within a LightingProvider");

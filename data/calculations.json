@@ -1,0 +1,48 @@
+{
+  "calculations": [
+    {
+      "id": "696f095f-7969-4c35-9c91-4a48235c44e4",
+      "userId": "f089d9ff-31e9-4520-8b8c-b9beb4ff7d86",
+      "name": "Room 9m × 15m - 500 lux New Test",
+      "roomDimensions": {
+        "length": 9,
+        "width": 15,
+        "height": 3,
+        "workplaneHeight": 0.85
+      },
+      "lightingRequirements": {
+        "targetIlluminance": 500,
+        "fluxPerLamp": 3600,
+        "contaminationLevel": "dirty",
+        "maintenanceInterval": 2,
+        "ceilingReflectance": 0.7,
+        "wallReflectance": 0.5
+      },
+      "results": {
+        "numberOfLamps": 34,
+        "roomCavityRatio": 1.91,
+        "coefficientOfUtilization": 0.714,
+        "maintenanceFactor": 0.78,
+        "layout": {
+          "rows": 7,
+          "columns": 5,
+          "lengthSpacing": 1.8,
+          "widthSpacing": 2.14
+        },
+        "illuminanceDistribution": {
+          "average": 504.89,
+          "minimum": 353.42,
+          "maximum": 656.35,
+          "uniformity": 0.7
+        },
+        "energyMetrics": {
+          "totalPower": 1224,
+          "powerDensity": 9.07,
+          "efficiencyRating": "Good"
+        }
+      },
+      "createdAt": "2025-05-01T17:28:11.633Z",
+      "updatedAt": "2025-05-01T17:28:11.635Z"
+    }
+  ]
+}

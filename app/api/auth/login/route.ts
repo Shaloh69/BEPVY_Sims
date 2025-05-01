@@ -1,43 +1,85 @@
+// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import { pool } from "@/lib/db";
+import { getUserByEmail, verifyPassword } from "@/lib/jsonStorage";
 
-const SECRET_KEY = process.env.JWT_SECRET || "your-secret-key";
-
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const { email, password } = await request.json();
 
-    const connection = await pool.getConnection();
-    const [rows]: any = await connection.execute(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
-    connection.release();
-
-    if (rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // Validate inputs
+    if (!email || !password) {
+      return NextResponse.json(
+        { message: "Email and password are required" },
+        { status: 400 }
+      );
     }
 
-    const user = rows[0];
-
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    // Check if user exists
+    const user = getUserByEmail(email);
+    if (!user) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { message: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Generate JWT
-    const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, {
-      expiresIn: "1h",
+    // Verify password
+    const isPasswordValid = await verifyPassword(user, password);
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { message: "Invalid email or password" },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is verified
+    if (!user.isVerified) {
+      return NextResponse.json(
+        { message: "Please verify your email address before logging in" },
+        { status: 403 }
+      );
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET || "default-secret",
+      { expiresIn: "7d" }
+    );
+
+    // Set cookie with JWT token
+    (
+      await // Set cookie with JWT token
+      cookies()
+    ).set({
+      name: "auth_token",
+      value: token,
+      httpOnly: true,
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      sameSite: "lax",
     });
 
-    return NextResponse.json({ token }, { status: 200 });
+    // Return user without password
+    const userWithoutPassword = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      isVerified: user.isVerified,
+    };
+
+    return NextResponse.json(
+      { message: "Login successful", user: userWithoutPassword },
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ error: "Login failed" }, { status: 500 });
+    console.error("Login error:", error);
+    return NextResponse.json(
+      { message: "An error occurred during login" },
+      { status: 500 }
+    );
   }
 }

@@ -1,5 +1,4 @@
 // config/site.ts
-
 export type SiteConfig = typeof siteConfig;
 
 export const siteConfig = {
@@ -18,6 +17,10 @@ export const siteConfig = {
       label: "Simulator",
       href: "/simulator",
     },
+    {
+      label: "Saved Calculations",
+      href: "/saved-calculations",
+    },
   ],
   navMenuItems: [
     {
@@ -31,6 +34,10 @@ export const siteConfig = {
     {
       label: "Simulator",
       href: "/simulator",
+    },
+    {
+      label: "Saved Calculations",
+      href: "/saved-calculations",
     },
     {
       label: "Profile",
