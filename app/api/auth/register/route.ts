@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const verificationToken = createToken(user.id, "email-verification");
 
     // Send verification email
-    await sendVerificationEmail(email, verificationToken.token);
+    // await sendVerificationEmail(email, verificationToken.token);
 
     return NextResponse.json(
       {
