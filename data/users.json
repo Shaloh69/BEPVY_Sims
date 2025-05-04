@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "id": "cb043870-4b7b-4c17-981d-07ca41048473",
+      "name": "Shem Joshua M. Dumpor",
+      "email": "dumporshemjoshua@gmail.com",
+      "passwordHash": "$2b$10$sv1D6xhs0.ka5UkGX59MWejCqapXNCNQFb8C1geXZzZUXZwbj14/y",
+      "isVerified": true,
+      "createdAt": "2025-05-04T22:42:16.595Z",
+      "updatedAt": "2025-05-04T22:42:16.595Z"
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "calculations": [
+    {
+      "id": "9d98deac-1c07-4be4-bdf2-bd586dc619a1",
+      "userId": "cb043870-4b7b-4c17-981d-07ca41048473",
+      "name": "Room 10m × 8m - 500 lux YES!",
+      "roomDimensions": {
+        "length": 10,
+        "width": 8,
+        "height": 3,
+        "workplaneHeight": 0.85
+      },
+      "lightingRequirements": {
+        "targetIlluminance": 500,
+        "fluxPerLamp": 3600,
+        "contaminationLevel": "normal",
+        "maintenanceInterval": 2,
+        "ceilingReflectance": 0.7,
+        "wallReflectance": 0.5
+      },
+      "results": {
+        "numberOfLamps": 20,
+        "roomCavityRatio": 2.42,
+        "coefficientOfUtilization": 0.695,
+        "maintenanceFactor": 0.84,
+        "layout": {
+          "rows": 4,
+          "columns": 5,
+          "lengthSpacing": 2,
+          "widthSpacing": 2
+        },
+        "illuminanceDistribution": {
+          "average": 525.37,
+          "minimum": 367.76,
+          "maximum": 682.99,
+          "uniformity": 0.7
+        },
+        "energyMetrics": {
+          "totalPower": 720,
+          "powerDensity": 9,
+          "efficiencyRating": "Good"
+        },
+        "billOfMaterials": {
+          "items": [
+            {
+              "name": "LED Panel (36W)",
+              "quantity": 20,
+              "unit": "pcs",
+              "description": "3600 lumens per lamp"
+            },
+            {
+              "name": "Mounting Kit",
+              "quantity": 20,
+              "unit": "sets",
+              "description": "Ceiling mounting hardware kit"
+            },
+            {
+              "name": "Mounting Brackets",
+              "quantity": 40,
+              "unit": "pcs",
+              "description": "Brackets for secure mounting"
+            },
+            {
+              "name": "Electrical Wire",
+              "quantity": 66,
+              "unit": "meters",
+              "description": "2.5mm² electrical cable"
+            },
+            {
+              "name": "Light Switch",
+              "quantity": 1,
+              "unit": "pcs",
+              "description": "Wall mounted light switch"
+            },
+            {
+              "name": "Junction Box",
+              "quantity": 5,
+              "unit": "pcs",
+              "description": "Electrical junction box"
+            }
+          ]
+        }
+      },
+      "createdAt": "2025-05-04T23:01:45.260Z",
+      "updatedAt": "2025-05-04T23:01:45.260Z"
+    }
+  ]
+}
